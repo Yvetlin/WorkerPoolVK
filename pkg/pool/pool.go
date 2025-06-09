@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const DefaultTaskBufferSize = 10
+
 type Task string
 
 type Worker struct {
@@ -21,6 +23,7 @@ type WorkerPool struct {
 	nextID        int
 	wg            sync.WaitGroup
 	mu            sync.Mutex
+	taskBufSize   int
 }
 
 func (w *Worker) Start() {
@@ -55,8 +58,12 @@ func (w *Worker) Stop() {
 }
 
 func NewWorkerPool(bufferSize int) *WorkerPool {
+	if bufferSize <= 0 {
+		bufferSize = DefaultTaskBufferSize
+	}
 	return &WorkerPool{
-		workers: make(map[int]*Worker),
+		workers:     make(map[int]*Worker),
+		taskBufSize: bufferSize,
 	}
 }
 
@@ -68,7 +75,7 @@ func (wp *WorkerPool) AddWorker() {
 		id:     wp.nextID,
 		wg:     &wp.wg,
 		stopCh: make(chan struct{}),
-		taskCh: make(chan Task, 10),
+		taskCh: make(chan Task, wp.taskBufSize),
 	}
 
 	wp.workers[w.id] = w
